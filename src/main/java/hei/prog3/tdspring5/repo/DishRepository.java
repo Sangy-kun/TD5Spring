@@ -75,4 +75,58 @@ public class DishRepository {
 
         return new ArrayList<>(dishMap.values());
     }
+
+    public boolean existsByName(String name) {
+        String sql = "SELECT COUNT(*) FROM dish WHERE name = ?";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setString(1, name);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getInt(1) > 0;
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la vérification de l'existence d'un plat", e);
+        }
+
+        return false;
+    }
+
+    public Dish save(Dish dish) {
+        String sql = "INSERT INTO dish (name, selling_price) VALUES (?, ?) RETURNING id";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            statement.setString(1, dish.getName());
+            statement.setDouble(2, dish.getSellingPrice());
+            statement.executeUpdate();
+
+            try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    dish.setId(generatedKeys.getInt(1));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de l'insertion d'un plat dans la base", e);
+        }
+
+        return dish;
+    }
+
+    public List<Dish> saveAll(List<Dish> dishes) {
+        List<Dish> savedDishes = new ArrayList<>();
+
+        for (Dish dish : dishes) {
+            savedDishes.add(this.save(dish));
+        }
+
+        return savedDishes;
+    }
+
 }
